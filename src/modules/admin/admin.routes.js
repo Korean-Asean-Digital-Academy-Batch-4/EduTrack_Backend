@@ -16,8 +16,10 @@ router.use(requireRole('admin'));
 // Tahun ajaran & semester
 router.get('/academic-years', asyncHandler(periods.listAcademicYears));
 router.post('/academic-years', asyncHandler(periods.createAcademicYear));
+router.patch('/academic-years/:id/activate', asyncHandler(periods.activateAcademicYear));
 router.get('/semesters', asyncHandler(periods.listSemesters));
 router.post('/semesters', asyncHandler(periods.createSemester));
+router.patch('/semesters/:id/activate', asyncHandler(periods.activateSemester));
 
 // Akun Guru
 router.post('/teachers', asyncHandler(accounts.createTeacher));
@@ -43,6 +45,7 @@ router.patch('/subjects/:id', asyncHandler(subjects.updateSubject));
 
 // Kelas
 router.post('/classes', asyncHandler(classes.createClass));
+router.get('/classes', asyncHandler(classes.listClasses));
 router.post('/classes/:id/students/import', upload.single('file'), asyncHandler(classes.importClassStudents));
 router.post('/classes/:id/subjects', asyncHandler(classes.addClassSubject));
 router.patch('/classes/:id/homeroom-teacher', asyncHandler(classes.setHomeroomTeacher));

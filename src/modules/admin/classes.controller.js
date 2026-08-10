@@ -18,6 +18,26 @@ async function createClass(req, res) {
   return created(res, rows[0], 'Kelas berhasil dibuat');
 }
 
+async function listClasses(req, res) {
+  const { semesterId, gradeLevel } = req.query;
+  const conditions = [];
+  const params = [];
+  if (semesterId) { params.push(semesterId); conditions.push(`c.semester_id = $${params.length}`); }
+  if (gradeLevel) { params.push(gradeLevel); conditions.push(`c.grade_level = $${params.length}`); }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const { rows } = await pool.query(
+    `SELECT c.*, t.name AS homeroom_teacher_name,
+            (SELECT count(*) FROM class_students cs WHERE cs.class_id = c.id) AS student_count,
+            (SELECT count(*) FROM class_subjects cs WHERE cs.class_id = c.id) AS subject_count
+     FROM classes c LEFT JOIN teachers t ON t.id = c.homeroom_teacher_id
+     ${where}
+     ORDER BY c.name`,
+    params
+  );
+  return ok(res, rows);
+}
+
 async function importClassStudents(req, res) {
   const { id: classId } = req.params;
   if (!req.file) throw AppError.badRequest('Berkas Excel wajib diunggah (field "file")');
@@ -133,5 +153,5 @@ async function getClassDetail(req, res) {
 }
 
 module.exports = {
-  createClass, importClassStudents, addClassSubject, setHomeroomTeacher, getClassDetail,
+  createClass, listClasses, importClassStudents, addClassSubject, setHomeroomTeacher, getClassDetail,
 };

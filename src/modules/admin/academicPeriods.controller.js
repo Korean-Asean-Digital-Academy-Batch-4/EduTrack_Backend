@@ -1,4 +1,4 @@
-const { pool } = require('../../db/pool');
+const { pool, withTransaction } = require('../../db/pool');
 const { ok, created } = require('../../utils/response');
 const AppError = require('../../utils/AppError');
 
@@ -43,4 +43,36 @@ async function createSemester(req, res) {
   return created(res, rows[0], 'Semester berhasil dibuat');
 }
 
-module.exports = { listAcademicYears, createAcademicYear, listSemesters, createSemester };
+// Hanya SATU tahun ajaran yang aktif di seluruh sistem pada satu waktu (dipakai sbg default
+// konteks kerja Guru/Wali Kelas). Mengaktifkan satu otomatis menonaktifkan yang lain.
+async function activateAcademicYear(req, res) {
+  const { id } = req.params;
+  const { rows } = await withTransaction(async (client) => {
+    await client.query('UPDATE academic_years SET is_active = false WHERE is_active = true');
+    return client.query(
+      'UPDATE academic_years SET is_active = true WHERE id = $1 RETURNING *',
+      [id]
+    );
+  });
+  if (!rows.length) throw AppError.notFound('Tahun ajaran tidak ditemukan');
+  return ok(res, rows[0], `Tahun ajaran ${rows[0].name} diaktifkan`);
+}
+
+// Sama seperti tahun ajaran: hanya SATU semester aktif di seluruh sistem pada satu waktu.
+async function activateSemester(req, res) {
+  const { id } = req.params;
+  const { rows } = await withTransaction(async (client) => {
+    await client.query('UPDATE semesters SET is_active = false WHERE is_active = true');
+    return client.query(
+      'UPDATE semesters SET is_active = true WHERE id = $1 RETURNING *',
+      [id]
+    );
+  });
+  if (!rows.length) throw AppError.notFound('Semester tidak ditemukan');
+  return ok(res, rows[0], `Semester ${rows[0].name} diaktifkan`);
+}
+
+module.exports = {
+  listAcademicYears, createAcademicYear, activateAcademicYear,
+  listSemesters, createSemester, activateSemester,
+};

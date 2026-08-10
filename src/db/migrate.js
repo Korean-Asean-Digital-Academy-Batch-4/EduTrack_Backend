@@ -5,11 +5,7 @@ const path = require('path');
 const { Pool } = require('pg');
 
 async function main() {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false } // Required for Supabase SSL connection
-  });
-
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   try {
     console.log('Menjalankan schema.sql ...');

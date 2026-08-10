@@ -20,13 +20,6 @@ if (env.nodeEnv !== 'test') app.use(morgan(env.nodeEnv === 'production' ? 'combi
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-app.get('/', (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: 'EduTrack API is running'
-    });
-});
-
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', authenticate, adminRoutes);
 app.use('/api/teacher', authenticate, teacherRoutes);
