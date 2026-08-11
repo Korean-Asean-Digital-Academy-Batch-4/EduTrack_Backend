@@ -2,21 +2,29 @@ const { pool } = require('../../db/pool');
 const { ok, fail } = require('../../utils/response');
 const AppError = require('../../utils/AppError');
 const aiInsightService = require('../../services/aiInsight.service');
+const assessmentTopicsService = require('../../services/assessmentTopics.service');
 
 async function getMyGrades(req, res) {
   const studentId = req.user.sub;
   const { rows } = await pool.query(
     `SELECT sub.id AS subject_id, sub.name AS subject_name, sub.grade_level, sub.kkm,
-            ac.code AS component_code, ac.weight_percent, g.score
+            ac.code AS component_code, ac.weight_percent, at.topic, g.score
      FROM class_students cs
      JOIN class_subjects csub ON csub.class_id = cs.class_id
      JOIN subjects sub ON sub.id = csub.subject_id
      CROSS JOIN assessment_components ac
+     LEFT JOIN assessment_topics at
+       ON at.class_id = cs.class_id AND at.subject_id = sub.id AND at.component_id = ac.id
      LEFT JOIN grades g ON g.subject_id = sub.id AND g.student_id = cs.student_id AND g.component_id = ac.id
      WHERE cs.student_id = $1
      ORDER BY sub.name, ac.sort_order`,
     [studentId]
   );
+  return ok(res, rows);
+}
+
+async function getMyAssessmentTopics(req, res) {
+  const rows = await assessmentTopicsService.getStudentTopics(req.user.sub);
   return ok(res, rows);
 }
 
@@ -95,4 +103,11 @@ async function downloadMyReportCard(req, res) {
   );
 }
 
-module.exports = { getMyGrades, getMyAttendance, getAiInsight, getMyReportCard, downloadMyReportCard };
+module.exports = {
+  getMyGrades,
+  getMyAssessmentTopics,
+  getMyAttendance,
+  getAiInsight,
+  getMyReportCard,
+  downloadMyReportCard,
+};

@@ -8,6 +8,12 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "migrate": "node src/db/migrate.js",
+    "migrate:assessment-topics": "node src/db/addAssessmentTopics.js",
+    "reconcile:schema": "node src/db/reconcile.js",
+    "audit:db": "node src/db/audit.js",
+    "harden:security": "node src/db/harden.js",
+    "smoke": "node scripts/smoke-test.js",
+    "smoke:assessment-topics": "node scripts/assessment-topics-smoke-test.js",
     "seed:admin": "node scripts/seed-admin.js"
   },
   "dependencies": {

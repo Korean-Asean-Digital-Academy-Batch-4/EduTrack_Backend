@@ -4,6 +4,7 @@ const { requireRole } = require('../../middleware/roleGuard');
 
 const classesCtrl = require('./classes.controller');
 const gradesCtrl = require('./grades.controller');
+const assessmentTopicsCtrl = require('./assessmentTopics.controller');
 const attendanceCtrl = require('./attendance.controller');
 
 const router = Router();
@@ -14,6 +15,8 @@ router.get('/classes/:classId/students', asyncHandler(classesCtrl.listClassStude
 
 router.get('/classes/:classId/grades', asyncHandler(gradesCtrl.getClassGrades));
 router.put('/classes/:classId/grades', asyncHandler(gradesCtrl.putClassGrades));
+router.get('/classes/:classId/assessment-topics', asyncHandler(assessmentTopicsCtrl.getClassTopics));
+router.put('/classes/:classId/assessment-topics', asyncHandler(assessmentTopicsCtrl.putClassTopics));
 
 router.get('/classes/:classId/attendance-sessions', asyncHandler(attendanceCtrl.listSessions));
 router.post('/classes/:classId/attendance-sessions', asyncHandler(attendanceCtrl.openSession));

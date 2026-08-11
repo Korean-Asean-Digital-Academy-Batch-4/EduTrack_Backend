@@ -5,10 +5,14 @@ const gradesService = require('../../services/grades.service');
 async function listMyClasses(req, res) {
   const teacherId = req.user.sub;
   const { rows } = await pool.query(
-    `SELECT DISTINCT c.id, c.name, c.grade_level, sub.name AS subject_name
+    `SELECT DISTINCT c.id, c.name, c.grade_level,
+            sub.id AS subject_id, sub.name AS subject_name,
+            ay.name AS academic_year_name, sem.name AS semester_name
      FROM classes c
      JOIN class_subjects csub ON csub.class_id = c.id
      JOIN subjects sub ON sub.id = csub.subject_id
+     JOIN semesters sem ON sem.id = c.semester_id
+     JOIN academic_years ay ON ay.id = sem.academic_year_id
      WHERE sub.teacher_id = $1
      ORDER BY c.name`,
     [teacherId]

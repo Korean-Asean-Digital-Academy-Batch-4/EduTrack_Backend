@@ -122,6 +122,24 @@ INSERT INTO assessment_components (code, weight_percent, sort_order) VALUES
   ('UTS', 26, 7), ('UAS', 26, 8);
 -- Total harus tepat 100%. Diverifikasi lewat: SELECT sum(weight_percent) FROM assessment_components; --> 100
 
+-- Topik materi yang diajarkan untuk setiap komponen pada satu mapel di satu kelas.
+CREATE TABLE assessment_topics (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  class_id              UUID NOT NULL,
+  subject_id            UUID NOT NULL,
+  component_id          UUID NOT NULL REFERENCES assessment_components(id) ON DELETE RESTRICT,
+  topic                 TEXT NOT NULL CHECK (char_length(btrim(topic)) BETWEEN 1 AND 100),
+  updated_by_teacher_id UUID NOT NULL REFERENCES teachers(id) ON DELETE RESTRICT,
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (class_id, subject_id)
+    REFERENCES class_subjects(class_id, subject_id) ON DELETE CASCADE,
+  UNIQUE (class_id, subject_id, component_id)
+);
+CREATE TRIGGER trg_assessment_topics_updated_at BEFORE UPDATE ON assessment_topics
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE INDEX idx_assessment_topics_component ON assessment_topics (component_id);
+CREATE INDEX idx_assessment_topics_teacher ON assessment_topics (updated_by_teacher_id);
+
 -- ---------------------------------------------------------------------------
 -- Nilai
 -- ---------------------------------------------------------------------------
@@ -193,6 +211,31 @@ CREATE INDEX idx_classes_semester ON classes (semester_id);
 CREATE INDEX idx_class_students_student ON class_students (student_id);
 CREATE INDEX idx_attendance_sessions_class ON attendance_sessions (class_id, session_date);
 CREATE INDEX idx_report_cards_class ON report_cards (class_id, semester_id);
+CREATE INDEX idx_attendance_sessions_subject ON attendance_sessions (subject_id);
+CREATE INDEX idx_classes_homeroom_teacher ON classes (homeroom_teacher_id);
+CREATE INDEX idx_grades_filled_by_teacher ON grades (filled_by_teacher_id);
+CREATE INDEX idx_report_cards_finalized_by ON report_cards (finalized_by);
+CREATE INDEX idx_report_cards_distributed_by ON report_cards (distributed_by);
+
+-- Defense in depth untuk instalasi PostgreSQL/Supabase.
+ALTER TABLE administrators ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teachers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE academic_years ENABLE ROW LEVEL SECURITY;
+ALTER TABLE semesters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_subjects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assessment_components ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assessment_topics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE grades ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE report_cards ENABLE ROW LEVEL SECURITY;
+
+-- Untuk Supabase, jalankan `npm run harden:security` setelah migrasi agar
+-- privilege Data API dan default privilege juga dicabut.
 
 -- ---------------------------------------------------------------------------
 -- Catatan implementasi (bukan bagian skema, hanya pengingat tim)

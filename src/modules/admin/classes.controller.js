@@ -61,7 +61,11 @@ async function importClassStudents(req, res) {
     const nis = String(row['NIS'] || '').trim();
     if (!nis) { failedRows.push({ row: i + 2, reason: 'NIS kosong' }); continue; }
     try {
-      const studentRes = await pool.query('SELECT id FROM students WHERE nis = $1', [nis]);
+      const legacyNis = /^\d+$/.test(nis) ? nis : null;
+      const studentRes = await pool.query(
+        'SELECT id FROM students WHERE nis = $1 OR nis_legacy_bigint = $2',
+        [nis, legacyNis]
+      );
       if (!studentRes.rows.length) {
         failedRows.push({ row: i + 2, reason: `NIS ${nis} belum terdaftar sebagai akun Siswa` });
         continue;

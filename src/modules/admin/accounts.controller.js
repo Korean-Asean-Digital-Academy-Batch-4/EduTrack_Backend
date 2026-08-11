@@ -7,8 +7,10 @@ const { generateInitialPassword, hashPassword } = require('../../utils/password'
 // ---- Guru -------------------------------------------------------------
 
 async function createTeacher(req, res) {
-  const { nip, name } = req.body;
-  if (!nip || !name) throw AppError.badRequest('nip dan name wajib diisi');
+  const { name } = req.body;
+  const nip = normalizeNumericIdentifier(req.body.nip, 'NIP');
+  if (!name) throw AppError.badRequest('nip dan name wajib diisi');
+  await ensureTeacherIdentifierAvailable(nip);
   const plainPassword = generateInitialPassword();
   const { rows } = await pool.query(
     'INSERT INTO teachers (nip, name, password_hash) VALUES ($1, $2, $3) RETURNING id, nip, name, created_at',
@@ -21,9 +23,9 @@ async function importTeachers(req, res) {
   const rows = parseCsv(req, ['Nama', 'NIP']);
   const result = await bulkInsert(rows, async (row, index) => {
     const name = (row['Nama'] || '').trim();
-    const nip = (row['NIP'] || '').trim();
+    const nip = normalizeNumericIdentifier(row['NIP'], 'NIP', Error);
     if (!name) throw new Error('Nama kosong');
-    if (!nip) throw new Error('NIP kosong');
+    await ensureTeacherIdentifierAvailable(nip);
     const plainPassword = generateInitialPassword();
     await pool.query(
       'INSERT INTO teachers (nip, name, password_hash) VALUES ($1, $2, $3)',
@@ -62,8 +64,10 @@ async function resetTeacherPassword(req, res) {
 // ---- Siswa --------------------------------------------------------------
 
 async function createStudent(req, res) {
-  const { nis, name } = req.body;
-  if (!nis || !name) throw AppError.badRequest('nis dan name wajib diisi');
+  const { name } = req.body;
+  const nis = normalizeNumericIdentifier(req.body.nis, 'NIS');
+  if (!name) throw AppError.badRequest('nis dan name wajib diisi');
+  await ensureStudentIdentifierAvailable(nis);
   const plainPassword = generateInitialPassword();
   const { rows } = await pool.query(
     'INSERT INTO students (nis, name, password_hash) VALUES ($1, $2, $3) RETURNING id, nis, name, created_at',
@@ -76,9 +80,9 @@ async function importStudents(req, res) {
   const rows = parseCsv(req, ['Nama', 'NIS']);
   const result = await bulkInsert(rows, async (row) => {
     const name = (row['Nama'] || '').trim();
-    const nis = (row['NIS'] || '').trim();
+    const nis = normalizeNumericIdentifier(row['NIS'], 'NIS', Error);
     if (!name) throw new Error('Nama kosong');
-    if (!nis) throw new Error('NIS kosong');
+    await ensureStudentIdentifierAvailable(nis);
     const plainPassword = generateInitialPassword();
     await pool.query(
       'INSERT INTO students (nis, name, password_hash) VALUES ($1, $2, $3)',
@@ -144,6 +148,33 @@ async function bulkInsert(rows, insertOneRow) {
     }
   }
   return { createdCount, failedRows };
+}
+
+function normalizeNumericIdentifier(value, label, ErrorType = null) {
+  const normalized = String(value ?? '').trim();
+  const message = normalized ? `${label} hanya boleh berisi angka` : `${label} kosong`;
+  if (!normalized || !/^\d+$/.test(normalized)) {
+    if (ErrorType) throw new ErrorType(message);
+    throw AppError.badRequest(message);
+  }
+  return normalized;
+}
+
+async function ensureTeacherIdentifierAvailable(nip) {
+  const legacy = Number(nip);
+  const existing = await pool.query(
+    'SELECT 1 FROM teachers WHERE nip = $1 OR nip_legacy_real = $2 LIMIT 1',
+    [nip, Number.isFinite(legacy) ? legacy : null]
+  );
+  if (existing.rowCount) throw AppError.conflict('NIP sudah terdaftar');
+}
+
+async function ensureStudentIdentifierAvailable(nis) {
+  const existing = await pool.query(
+    'SELECT 1 FROM students WHERE nis = $1 OR nis_legacy_bigint = $2 LIMIT 1',
+    [nis, nis]
+  );
+  if (existing.rowCount) throw AppError.conflict('NIS sudah terdaftar');
 }
 
 module.exports = {

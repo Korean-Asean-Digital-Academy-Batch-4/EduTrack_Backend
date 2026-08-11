@@ -8,8 +8,24 @@ Implementasi backend MVP EduTrack (EDU-2026-001) sesuai `PRD.md`, `01-ERD.md`, `
 cp .env.example .env      # isi DATABASE_URL, JWT_SECRET, dst.
 npm install
 npm run migrate           # menjalankan src/db/schema.sql ke PostgreSQL
+npm run harden:security   # wajib untuk project Supabase existing
+npm run audit:db          # audit struktur, relasi data, privilege, RLS, dan indeks
 npm run seed:admin -- admin@sekolah.id "katasandi-awal" "Nama Admin"
+npm run smoke             # uji health, CORS, auth guard, dan baca database via API
 npm run dev                # http://localhost:4000
+```
+
+Untuk project Supabase existing/hasil duplikasi, **jangan** jalankan `migrate`
+atau `seed:admin`. Gunakan urutan berikut agar data lama dipertahankan:
+
+```bash
+npm run reconcile:schema
+npm run migrate:assessment-topics
+npm run harden:security
+npm run audit:db
+npm run smoke
+npm run smoke:assessment-topics
+npm run dev
 ```
 
 Cek server hidup: `GET /health` → `{ "status": "ok" }`.
@@ -24,6 +40,12 @@ src/
     schema.sql              DDL (identik dengan dokumen 02-schema.sql)
     pool.js                 pg Pool + helper transaksi
     migrate.js               jalankan schema.sql
+    reconcile.js             selaraskan tipe/default/constraint database legacy
+    reconcile-legacy-schema.sql migrasi idempoten tanpa menghapus data
+    audit.js                 audit read-only struktur, data, dan keamanan database
+    addAssessmentTopics.js   migrasi idempoten tabel topik untuk database existing
+    harden.js                tutup Data API, aktifkan RLS, verifikasi keamanan
+    security-hardening.sql   hardening idempotent untuk database existing
   middleware/
     auth.js                  verifikasi JWT -> req.user
     roleGuard.js              requireRole(), requireHomeroomOf()
@@ -33,10 +55,11 @@ src/
     AppError.js, response.js, jwt.js, password.js, asyncHandler.js
   services/                  logika bisnis lintas modul
     grades.service.js
+    assessmentTopics.service.js validasi dan simpan topik per kelas/mapel/komponen
     attendance.service.js
     completeness.service.js  cek kelengkapan nilai per mapel (dipakai homeroom + finalisasi)
     reportCardLock.service.js kunci nilai/presensi setelah rapor Final (§9)
-    aiInsight.service.js      panggil Anthropic API untuk tombol Suggestion (§8.5)
+    aiInsight.service.js      panggil Gemini API untuk tombol Suggestion (§8.5)
   modules/
     auth/        POST /api/auth/login
     admin/        seluruh /api/admin/*
@@ -60,10 +83,14 @@ scripts/seed-admin.js   buat akun Administrator pertama (tidak ada endpoint sign
   simpan nilai/presensi milik Guru & Wali Kelas; ditolak (403) jika `report_cards.status`
   kelas tsb bukan `Draft`. Endpoint Admin (`/api/admin/grades`, dst.) tidak dibatasi ini.
 - **AI Insight tidak pernah ditulis ke DB** — `aiInsight.service.js` murni baca data lalu
-  panggil Anthropic API; kegagalan (timeout/API error) dikembalikan sebagai `503`, tidak
+  panggil Gemini API; kegagalan (timeout/API error) dikembalikan sebagai `503`, tidak
   melempar 500 supaya jelas ini bukan bug backend (§8.6 poin 7).
 - **Templat komponen nilai (T1-T3, U1-U3, UTS, UAS) sudah di-seed lewat `schema.sql`**
   (lihat `INSERT INTO assessment_components`) — tidak ada endpoint untuk mengubahnya di MVP.
+- **Topik penilaian disimpan per kelas dan mata pelajaran.** Guru pengampu membaca/menyimpan
+  seluruh 8 topik melalui `GET/PUT /api/teacher/classes/:classId/assessment-topics`.
+  Siswa membaca topik mapelnya melalui `GET /api/student/assessment-topics`; kolom `topic`
+  juga ikut pada `GET /api/student/grades` dan menjadi konteks baca AI Insight.
 
 ## Yang belum diimplementasikan (di luar cakupan MVP / perlu keputusan lanjutan)
 

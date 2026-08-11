@@ -7,13 +7,16 @@ async function collectStudentAcademicData(studentId) {
   const gradesRes = await pool.query(
     `
     SELECT sub.name AS subject_name, sub.grade_level, sub.kkm,
-           ac.code AS component_code, g.score
+           ac.code AS component_code, at.topic, g.score
     FROM class_students cs
     JOIN class_subjects csub ON csub.class_id = cs.class_id
     JOIN subjects sub ON sub.id = csub.subject_id
     CROSS JOIN assessment_components ac
+    LEFT JOIN assessment_topics at
+      ON at.class_id = cs.class_id AND at.subject_id = sub.id AND at.component_id = ac.id
     LEFT JOIN grades g
-      ON g.subject_id = sub.id AND g.student_id = cs.student_id AND g.component_id = ac.id
+      ON g.class_id = cs.class_id AND g.subject_id = sub.id
+     AND g.student_id = cs.student_id AND g.component_id = ac.id
     WHERE cs.student_id = $1
     ORDER BY sub.name, ac.sort_order
     `,
@@ -39,8 +42,11 @@ async function collectStudentAcademicData(studentId) {
   const bySubject = {};
   for (const row of gradesRes.rows) {
     const key = `${row.subject_name} ${row.grade_level}`;
-    if (!bySubject[key]) bySubject[key] = { subject: key, kkm: Number(row.kkm), components: {} };
+    if (!bySubject[key]) {
+      bySubject[key] = { subject: key, kkm: Number(row.kkm), components: {}, topics: {} };
+    }
     bySubject[key].components[row.component_code] = row.score === null ? null : Number(row.score);
+    bySubject[key].topics[row.component_code] = row.topic || null;
   }
   for (const row of attendanceRes.rows) {
     const key = `${row.subject_name} ${row.grade_level}`;
@@ -113,7 +119,8 @@ Tugasmu:
 2. Lanjutkan dengan poin-poin ringkas: hal yang perlu ditingkatkan beserta alasannya.
 3. Tutup dengan TEPAT DUA pilihan tindakan yang realistis, format "Opsi A: ..." dan "Opsi B: ...".
 Jangan hitung nilai akhir resmi, jangan membuat prediksi kelulusan atau diagnosis apapun.
-Kaitkan presensi rendah sebagai kemungkinan penyebab nilai rendah bila relevan, bukan sebagai peringatan.`;
+Gunakan nama topik pada setiap komponen untuk memberi saran belajar yang spesifik berdasarkan skor siswa.
+Jika topik belum diisi, jangan mengarang topik. Kaitkan presensi rendah sebagai kemungkinan penyebab nilai rendah bila relevan, bukan sebagai peringatan.`;
 }
 
 function parseAiText(text, isPartialData) {
@@ -130,4 +137,4 @@ function parseAiText(text, isPartialData) {
   };
 }
 
-module.exports = { generateInsight };
+module.exports = { collectStudentAcademicData, buildPrompt, generateInsight };
