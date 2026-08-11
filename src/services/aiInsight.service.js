@@ -64,8 +64,8 @@ async function collectStudentAcademicData(studentId) {
 async function generateInsight(studentId) {
   const { subjects, isPartialData } = await collectStudentAcademicData(studentId);
 
-  if (!env.anthropicApiKey) {
-    const err = new Error('AI belum dikonfigurasi (ANTHROPIC_API_KEY kosong)');
+  if (!env.geminiApiKey) {
+    const err = new Error('AI belum dikonfigurasi (GEMINI_API_KEY kosong)');
     err.isAiFailure = true;
     throw err;
   }
@@ -75,17 +75,12 @@ async function generateInsight(studentId) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), env.aiRequestTimeoutMs);
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${env.aiModel}:generateContent?key=${env.geminiApiKey}`;
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': env.anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-      },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: env.aiModel,
-        max_tokens: 600,
-        messages: [{ role: 'user', content: prompt }],
+        contents: [{ parts: [{ text: prompt }] }],
       }),
       signal: controller.signal,
     });
@@ -95,7 +90,10 @@ async function generateInsight(studentId) {
       throw err;
     }
     const data = await response.json();
-    const text = (data.content || []).map((b) => b.text || '').join('\n').trim();
+    const text = (data.candidates?.[0]?.content?.parts || [])
+      .map((p) => p.text || '')
+      .join('\n')
+      .trim();
     return parseAiText(text, isPartialData);
   } catch (err) {
     err.isAiFailure = true;

@@ -17,7 +17,7 @@ module.exports = {
   initialPasswordLength: parseInt(process.env.INITIAL_PASSWORD_LENGTH || '8', 10),
   corsOrigin: process.env.CORS_ORIGIN || '*',
   fileUploadMaxSizeMb: parseInt(process.env.FILE_UPLOAD_MAX_SIZE_MB || '5', 10),
-  aiModel: process.env.AI_MODEL || 'claude-sonnet-4-6',
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+  aiModel: process.env.AI_MODEL || 'gemini-2.0-flash',
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
   aiRequestTimeoutMs: parseInt(process.env.AI_REQUEST_TIMEOUT_MS || '15000', 10),
 };
